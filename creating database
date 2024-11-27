@@ -1,0 +1,49 @@
+#CREATE DATABASE PROJECT;
+USE PROJECT;
+
+drop table Users;
+drop table FriendGroup;
+drop table FriendGroup_User;
+drop table Availability;
+
+CREATE TABLE Users (
+user_id INTEGER AUTO_INCREMENT, 
+username VARCHAR(32) NOT NULL, 
+hash_pass VARCHAR(32) NOT NULL,
+PRIMARY KEY (user_id)
+);
+
+CREATE TABLE FriendGroup (
+fgroup_id INTEGER AUTO_INCREMENT, 
+`name` VARCHAR(32) NOT NULL, 
+PRIMARY KEY (fgroup_id)
+);
+
+CREATE TABLE Availability (
+avail_id INTEGER AUTO_INCREMENT, 
+user_id INTEGER,
+`date` DATE,
+start_time TIME,
+end_time TIME,
+PRIMARY KEY (avail_id),
+FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+CREATE TABLE FriendGroup_User (
+fgroup_id INTEGER,
+user_id INTEGER,
+FOREIGN KEY(fgroup_id) REFERENCES FriendGroup(fgroup_id),
+FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+INSERT INTO FriendGroup (`name`) VALUES ('Farssquad');
+INSERT INTO Users (username, hash_pass) VALUES ('Fiona', 'wefnwef');
+INSERT INTO Users (username, hash_pass) VALUES ('Shrek', 'sdafewafewa');
+INSERT INTO FriendGroup_User VALUES (1, 1);
+INSERT INTO FriendGroup_User VALUES (1, 2);
+
+SELECT * FROM FriendGroup_User;
+
+SELECT FriendGroup.`name`, Users.username FROM Users 
+INNER JOIN FriendGroup_User ON FriendGroup_User.user_id=Users.user_id
+INNER JOIN FriendGroup ON FriendGroup.fgroup_id=FriendGroup_User.fgroup_id;
