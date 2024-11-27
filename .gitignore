@@ -1,1 +1,6 @@
 .venv
+backups
+docker
+__pycache__
+Backend\__pycache__
+backup.bat

@@ -1,8 +1,9 @@
 @echo off
-SET CONTAINER_NAME=mysql-slave
+SET CONTAINER_NAME=mysql-slavev3
 SET MYSQL_USER=backup_user
 SET MYSQL_PASSWORD=backup_pass
-SET BACKUP_DIR=C:\Users\lenovo\Documents\Semestr_V\Bazy Danych\friends_app\Find-a-time\backup\dir_of_backups
+SET MYSQL_PORT=3315
+SET BACKUP_DIR=C:\Users\natalcia\Desktop\PWr\Bazy Danych\projekt\Find-a-time\Backend\backups
 
 for /f "tokens=2 delims==" %%I in ('"wmic os get localdatetime /value"') do set datetime=%%I
 set DATE=%datetime:~0,4%-%datetime:~4,2%-%datetime:~6,2%
