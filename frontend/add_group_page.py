@@ -1,6 +1,6 @@
 import streamlit as st
 
-potential_members = []
+potential_members = ()
 
 st.header("Hi, Add your group!")
 
