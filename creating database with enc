@@ -1,0 +1,60 @@
+#CREATE DATABASE PROJECT;
+USE projekt;
+
+#drop table Users;
+#drop table FriendGroup;
+#drop table FriendGroup_User;
+#drop table Availability;
+
+CREATE TABLE Users (
+user_id INTEGER AUTO_INCREMENT, 
+username VARBINARY(255) NOT NULL, 
+hash_pass VARBINARY(255) NOT NULL,
+salt varchar(50) NOT NULL,
+PRIMARY KEY (user_id),
+UNIQUE (username)
+);
+
+CREATE TABLE FriendGroup (
+fgroup_id INTEGER AUTO_INCREMENT, 
+`name` VARBINARY(255) NOT NULL, 
+PRIMARY KEY (fgroup_id),
+UNIQUE (`name`)
+);
+
+CREATE TABLE Availability (
+avail_id INTEGER AUTO_INCREMENT, 
+user_id INTEGER,
+`date` DATE,
+start_time TIME,
+end_time TIME,
+PRIMARY KEY (avail_id),
+FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+CREATE TABLE FriendGroup_User (
+fgroup_id INTEGER,
+user_id INTEGER,
+FOREIGN KEY(fgroup_id) REFERENCES FriendGroup(fgroup_id),
+FOREIGN KEY(user_id) REFERENCES Users(user_id)
+);
+
+INSERT INTO FriendGroup (`name`) VALUES (AES_ENCRYPT('Farssquad', 'superhaslo'));
+INSERT INTO Users (username, hash_pass, salt) VALUES (AES_ENCRYPT('Fiona', 'superhaslo'), AES_ENCRYPT(CONCAT('haslo1', 'sol1'), 'superhaslo'), 'sol1' );
+INSERT INTO Users (username, hash_pass, salt) VALUES (AES_ENCRYPT('Shrek', 'superhaslo'), AES_ENCRYPT(CONCAT('haslo12', 'sol2'), 'superhaslo'), 'sol2' );
+INSERT INTO Users (username, hash_pass, salt) VALUES (AES_ENCRYPT('Donkey', 'superhaslo'), AES_ENCRYPT(CONCAT('haslo2', 'sol3'), 'superhaslo'), 'sol3' );
+INSERT INTO Users (username, hash_pass, salt) VALUES (AES_ENCRYPT('Ginerbreadman', 'superhaslo'), AES_ENCRYPT(CONCAT('haslo3', 'sol4'), 'superhaslo'), 'sol4' );
+INSERT INTO FriendGroup_User VALUES (1, 1);
+INSERT INTO FriendGroup_User VALUES (1, 2);
+INSERT INTO FriendGroup_User VALUES (1, 3);
+INSERT INTO FriendGroup_User VALUES (1, 4);
+
+SELECT * FROM FriendGroup_User;
+
+SELECT CAST(AES_DECRYPT(FriendGroup.`name`, 'superhaslo') AS char(100)) AS 'Nazwa grupy', CAST(AES_DECRYPT(Users.username, 'superhaslo') AS char(100)) AS 'Nazwa usera', REPLACE(CAST(AES_DECRYPT(Users.hash_pass, 'superhaslo') AS char(100)), Users.salt, '') AS 'Haslo', Users.salt FROM Users 
+INNER JOIN FriendGroup_User ON FriendGroup_User.user_id=Users.user_id
+INNER JOIN FriendGroup ON FriendGroup.fgroup_id=FriendGroup_User.fgroup_id;
+
+SELECT FriendGroup.`name`, Users.username, Users.hash_pass, Users.salt FROM Users 
+INNER JOIN FriendGroup_User ON FriendGroup_User.user_id=Users.user_id
+INNER JOIN FriendGroup ON FriendGroup.fgroup_id=FriendGroup_User.fgroup_id;
