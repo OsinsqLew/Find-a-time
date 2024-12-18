@@ -1,0 +1,64 @@
+Jak postawić serwery:
+	1. W terminalu (cmd) wpisać komendę, która zaprowadzi cię do miejsca gdzie znajduje się docker compose:
+		cd /sciezka/do/compose
+	2. Wydać polecenie: 
+		docker-compose up -d
+	Po tym kontenery powinny już isnieć, albo zostać w terminalu, albo przejść do docker-desktop
+	
+Jak włączyć replikę:
+	1. Wejść do basha mastera (terminal, jak docker-desktop to kliknąć odpowiednią zakładkę):
+		docker exec -it mysql-master bash
+		mysql -uroot -p
+	2. Wydać polecenie:
+		ALTER USER 'mirror_user'@'%' IDENTIFIED WITH 'mysql_native_password' BY 'mirror_password';
+		GRANT REPLICATION SLAVE ON . TO 'mirror_user'@'%';
+		FLUSH PRIVILEGES;
+	3. Wydać: (zapisać sobie w notatniku na później)
+		SHOW MASTER STATUS;
+	4. Wejść do basha slave'a (tak samo jak punkt 1, ale inna nazwa po -it 'mysql-slave')
+	5. Wydać polecenie:
+		CHANGE MASTER TO
+  		MASTER_HOST='mysql-master',
+  		MASTER_USER='replication_user',
+  		MASTER_PASSWORD='replication_password',
+  		MASTER_LOG_FILE='mysql-bin.xxxxxx',
+  		MASTER_LOG_POS=xxxx;
+	(tam gdzie 'x' wstawić to co było po wydaniu komendy SHOW MASTER STATUS)
+	6. Rozpocząć replikację: START SLAVE
+	7. Sprawdzić czy wszystko działa:
+		SHOW SLAVE STATUS\G
+	(jeśli wszystko działa to przy 'Slave_IO_Running' i Slave_SQL_Running' powinno być 'Yes')
+	8. Sprawdzić na żywo czy wszystko działa: 
+		Use projekt;
+		SELECT * FROM Users;
+	(jak się wyświetlą dane to jest super)
+	9. Do pliku 'my.cnf' Slave'a (w etc w kontenerze) dodać linijkę:
+		read_only = ON
+		super_read_only = ON
+	(teoretycznie SET GLOBAL super_read_only = ON; i podobne drugie, też powinno działać)
+
+
+Jak włączyć data-at-rest encryption:
+	1. Do pliku 'my.cnf' Mastera (w etc w kontenerze) dodać linijkę:
+		early-plugin-load=keyring_file.so (może być na samej górze, ale pod [mysqld])
+	2. Dać w cmd mysql'a mastera:
+		ALTER TABLE <nazwa_tabeli> ENCRYPTION = 'y';
+	(i tak dla każdej tabeli)
+	3. Sprawdzić czy jest ok:
+		SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES;
+	(ma być Y przy naszych tabelach)
+	4. Na cmd wydać komendę:
+		docker cp mysql-master:/var/lib/mysql-keyring/ mysql-keyring
+		docker cp mysql-keyring mysql-slave:/var/lib/
+	5. Na my.cnf Slave'a dodać linijkę taką jak pkt. 1
+	6. W exec'u slave'a wydać:
+		chmod 600 /var/lib/mysql-keyring/keyring
+		chown -R mysql:mysql /path/to/host/keyring
+	7. Zrestartować Slave'a, wydać w mysql slave'a:
+		SHOW SLAVE STATUS\G
+	(nadal powinno być Yes)
+	8. Upewnić się czy działa, zrobić to co w kroku 3.
+	9. Jeśli nie działa to pisz 
+
+	
+		
