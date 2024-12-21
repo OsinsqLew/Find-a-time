@@ -11,7 +11,7 @@ Jak włączyć replikę:
 		mysql -uroot -p
 	2. Wydać polecenie:
 		ALTER USER 'mirror_user'@'%' IDENTIFIED WITH 'mysql_native_password' BY 'mirror_password';
-		GRANT REPLICATION SLAVE ON . TO 'mirror_user'@'%';
+		GRANT REPLICATION SLAVE ON *.* TO 'mirror_user'@'%';
 		FLUSH PRIVILEGES;
 	3. Wydać: (zapisać sobie w notatniku na później)
 		SHOW MASTER STATUS;
