@@ -53,7 +53,7 @@ Jak włączyć data-at-rest encryption:
 	5. Na my.cnf Slave'a dodać linijkę taką jak pkt. 1
 	6. W exec'u slave'a wydać:
 		chmod 600 /var/lib/mysql-keyring/keyring
-		chown -R mysql:mysql /path/to/host/keyring
+		chown -R mysql:mysql /var/lib/mysql-keyring/keyring
 	7. Zrestartować Slave'a, wydać w mysql slave'a:
 		SHOW SLAVE STATUS\G
 	(nadal powinno być Yes)
