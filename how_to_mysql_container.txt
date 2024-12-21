@@ -19,8 +19,8 @@ Jak włączyć replikę:
 	5. Wydać polecenie:
 		CHANGE MASTER TO
   		MASTER_HOST='mysql-master',
-  		MASTER_USER='replication_user',
-  		MASTER_PASSWORD='replication_password',
+  		MASTER_USER='mirror_user',
+  		MASTER_PASSWORD='mirror_password',
   		MASTER_LOG_FILE='mysql-bin.xxxxxx',
   		MASTER_LOG_POS=xxxx;
 	(tam gdzie 'x' wstawić to co było po wydaniu komendy SHOW MASTER STATUS)
