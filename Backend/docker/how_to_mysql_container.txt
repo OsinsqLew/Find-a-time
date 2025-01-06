@@ -1,0 +1,111 @@
+Jak postawić serwery:
+	1. W terminalu (cmd) wpisać komendę, która zaprowadzi cię do miejsca gdzie znajduje się docker compose:
+		cd /sciezka/do/compose
+	2. Wydać polecenie: 
+		docker-compose up -d 
+	
+	Można też zrobić docker-compose up -p <nazwa stacku> -d
+	Po tym kontenery powinny już isnieć, albo zostać w terminalu, albo przejść do docker-desktop
+	
+Jak włączyć replikę:
+	1. Wejść do basha mastera (terminal, jak docker-desktop to kliknąć odpowiednią zakładkę):
+		docker exec -it mysql-master bash
+		mysql -uroot -proot
+	2. Wydać polecenie:
+		ALTER USER 'mirror_user'@'%' IDENTIFIED WITH 'mysql_native_password' BY 'mirror_password';
+		GRANT REPLICATION SLAVE ON . TO 'mirror_user'@'%';
+		FLUSH PRIVILEGES;
+	3. Wydać: (zapisać sobie w notatniku na później)
+		SHOW MASTER STATUS;
+	4. Wejść do basha slave'a (tak samo jak punkt 1, ale inna nazwa po -it 'mysql-slave')
+	5. Wydać polecenie:
+		CHANGE MASTER TO
+  			MASTER_HOST='mysql-masterv3',
+  			MASTER_USER='mirror_user',
+  			MASTER_PASSWORD='mirror_password',
+ 			MASTER_SSL=1,
+  			MASTER_SSL_CA='/etc/mysql/certs/ca.crt',
+  			MASTER_SSL_CERT='/etc/mysql/certs/slave-mysql.crt',
+  			MASTER_SSL_KEY='/etc/mysql/certs/slave-mysql.key',
+  			MASTER_SSL_VERIFY_SERVER_CERT=1,
+  			MASTER_LOG_FILE='mysql-bin.xxxxxx',
+  			MASTER_LOG_POS=xxx;
+	(tam gdzie 'x' wstawić to co było po wydaniu komendy SHOW MASTER STATUS)
+	6. Rozpocząć replikację: START SLAVE
+	7. Sprawdzić czy wszystko działa:
+		SHOW SLAVE STATUS\G
+	(jeśli wszystko działa to przy 'Slave_IO_Running' i Slave_SQL_Running' powinno być 'Yes')
+	8. Sprawdzić na żywo czy wszystko działa: 
+		Use projekt2;
+		SELECT CAST(AES_DECRYPT(FriendGroup.`name`, 'superhaslo') AS char(100)) AS 'Nazwa grupy', CAST(AES_DECRYPT(Users.username, 'superhaslo') AS char(100)) AS 'Nazwa usera', REPLACE(CAST(AES_DECRYPT(Users.hash_pass, 'superhaslo') AS char(100)), Users.salt, '') AS 'Haslo', Users.salt FROM Users 
+INNER JOIN FriendGroup_User ON FriendGroup_User.user_id=Users.user_id
+INNER JOIN FriendGroup ON FriendGroup.fgroup_id=FriendGroup_User.fgroup_id;
+
+	(jak się wyświetlą dane to jest super)
+	9. Do pliku 'my.cnf' Slave'a (w etc w kontenerze) dodać linijkę:
+		read_only = ON
+		super_read_only = ON
+	(teoretycznie SET GLOBAL super_read_only = ON; i podobne drugie, też powinno działać)
+
+
+Jak włączyć data-at-rest encryption:
+	1. Sprawdzić czy jest ok:
+		SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES;
+	(ma być Y przy naszych tabelach)
+	
+	
+SSL:
+	1. Sprawdzić czy jest ok:
+	W bash'u do slave, wpisać (hasło mirror_password):
+		mysql -u mirror_user -p -h mysql-masterv3 --ssl-ca=/etc/mysql/certs/ca.crt --ssl-cert=/etc/mysql/certs/slave-mysql.crt --ssl-key=/etc/mysql/certs/slave-mysql.key
+
+	Jak uda się zalogować to super, do mastera też powinno działać
+
+
+	2. Podstawowe ustawienia połączenia po ssl dla python:
+
+import mysql.connector
+from mysql.connector import Error
+
+def get_master_connection():
+    try:
+        connection = mysql.connector.connect(
+            host='localhost',
+            port=3314,
+            user='mirror_user',
+            password='mirror_password',
+            database='projekt2',
+            ssl_ca='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/master/ca.crt',
+            ssl_cert='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/master/master-mysql.crt',
+            ssl_key='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/master/master-mysql.key'
+        )
+
+        if connection.is_connected():
+            print('Connection to master database - ok.')
+        return connection
+
+    except Error as e:
+        print(f'Failed to obtain connection to master database: {e}.')
+        return None
+
+def get_slave_connection():
+    try:
+        connection = mysql.connector.connect(
+            host='localhost',
+            port=3315,
+            user='mirror_user',
+            password='mirror_password',
+            database='projekt2',
+            ssl_ca='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/slave/ca.crt',
+            ssl_cert='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/slave/slave-mysql.crt',
+            ssl_key='C:/Users/lenovo/Documents/Semestr_V/Bazy Danych/friends_app/Find-a-time/find-time/certs/slave/slave-mysql.key'
+        )
+
+        if connection.is_connected():
+            print('Connection to slave database - ok.')
+        return connection
+
+    except Error as e:
+        print(f'Failed to obtain connection to slave database: {e}.')
+        return None
+    

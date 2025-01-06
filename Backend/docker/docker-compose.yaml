@@ -1,0 +1,106 @@
+version: "3.9"
+
+services:
+  
+  mysql-masterv3:  
+    image: mysql:8.0
+    container_name: mysql-masterv3
+    command: >
+      --server-id=1                           
+      --log-bin=mysql-bin                     
+      --binlog-format=row
+      --ssl-ca=/etc/mysql/certs/ca.crt
+      --ssl-cert=/etc/mysql/certs/master-mysql.crt
+      --ssl-key=/etc/mysql/certs/master-mysql.key
+      --ssl=1                 
+      --bind-address=0.0.0.0    
+      --early-plugin-load=keyring_file.so     
+      --keyring-file-data=/keyring/keyring    
+
+    # Identyfikator serwera, wymagany dla replikacji.
+    # Wlacza binarne logi, niezbedne dla replikacji.
+    # Ustawia format logow binarnych na row.
+    # Laduje wtyczke keyring_file, uzywana do zarzadzania kluczami szyfrowania.
+    # Sciezka do pliku kluczy.
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: projekt2
+      MYSQL_USER: mirror_user 
+      MYSQL_PASSWORD: mirror_root
+    
+    volumes:
+      - ./master_data:/var/lib/mysql          # Przechowywanie danych bazy w katalogu master_data
+      - ./keyring:/keyring               # Przechowywanie pliku kluczy w katalogu keyring/master
+      - ./certs/master:/etc/mysql/certs
+
+    ports:
+      - "3314:3306"
+
+  mysql-slavev3:
+    image: mysql:8.0
+    container_name: mysql-slavev3
+    depends_on:
+      - mysql-masterv3
+    command: >
+      --server-id=2 
+      --log-bin=mysql-bin 
+      --binlog-format=row
+      --ssl-ca=/etc/mysql/certs/ca.crt
+      --ssl-cert=/etc/mysql/certs/slave-mysql.crt
+      --ssl-key=/etc/mysql/certs/slave-mysql.key
+      --ssl=1                 
+      --bind-address=0.0.0.0  
+      --early-plugin-load=keyring_file.so
+      --keyring-file-data=/keyring/keyring
+      --relay-log=slave-relay-bin
+
+    # Identyfikator serwera, wymagany dla replikacji.
+    # Wlacza binarne logi, niezbedne dla replikacji.
+    # Ustawia format logow binarnych na row.
+    # Laduje wtyczke keyring_file, uzywana do zarzadzania kluczami szyfrowania.
+    # Sciezka do pliku kluczy.
+    # Okresla nazwe pliku logow relay na slave.
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: projekt2
+      MYSQL_USER: mirror_user
+      MYSQL_PASSWORD: mirror_root
+    
+    volumes:
+      - ./slave_data:/var/lib/mysql          # Przechowywanie danych bazy w katalogu master_data
+      - ./keyring:/keyring             # Przechowywanie pliku kluczy w katalogu keyring/master
+      - ./certs/slave:/etc/mysql/certs
+
+    ports:
+      - "3315:3306"
+
+  cert-gen:
+    image: alpine
+    volumes:
+      - ./certs/master:/certs/master
+      - ./certs/slave:/certs/slave
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache openssl &&
+        mkdir -p /certs/master /certs/slave &&
+        
+        openssl genpkey -algorithm RSA -out /certs/master/ca.key -pkeyopt rsa_keygen_bits:2048 &&
+        openssl req -new -x509 -key /certs/master/ca.key -out /certs/master/ca.crt -days 1095 -subj "/CN=Certificate Authority/O=myorg/C=PL" &&
+        
+        openssl genpkey -algorithm RSA -out /certs/master/master-mysql.key -pkeyopt rsa_keygen_bits:2048 &&
+        openssl req -new -key /certs/master/master-mysql.key -out /certs/master/master-mysql.csr -subj "/CN=mysql-masterv3/O=myorg/C=PL" &&
+        openssl x509 -req -in /certs/master/master-mysql.csr -CA /certs/master/ca.crt -CAkey /certs/master/ca.key -CAcreateserial -out /certs/master/master-mysql.crt -days 365 &&
+        
+        openssl genpkey -algorithm RSA -out /certs/slave/slave-mysql.key -pkeyopt rsa_keygen_bits:2048 &&
+        openssl req -new -key /certs/slave/slave-mysql.key -out /certs/slave/slave-mysql.csr -subj "/CN=mysql-slavev3/O=myorg/C=PL" &&
+        openssl x509 -req -in /certs/slave/slave-mysql.csr -CA /certs/master/ca.crt -CAkey /certs/master/ca.key -CAcreateserial -out /certs/slave/slave-mysql.crt -days 365 &&
+        
+        cp /certs/master/ca.crt /certs/slave/ca.crt &&
+        
+        chmod 600 /certs/master/* /certs/slave/* &&
+        chown 999:999 /certs/master/* /certs/slave/* &&
+        
+        rm /certs/master/*.csr /certs/slave/*.csr
+    restart: "no"
