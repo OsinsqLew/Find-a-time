@@ -10,3 +10,4 @@ Technical Details:
   The connection between the database and the API is encrypted with SSL certificates.
   For additional security, the database operates in a Master-Slave setup,
   where writes occur only on the Master, and reads are handled exclusively by the Slave.
+  For educational purposes app gives an opportunity to check how SQL injection works.
